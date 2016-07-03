@@ -18,12 +18,29 @@ class DownloadFailedError(Exception):
 
 
 class SiteParser(metaclass=abc.ABCMeta):
+    """
+    A base parser class.
+
+    """
 
     def __init__(self, mainpage):
+        """
+        The method initializes a parser instance.
+
+        :param mainpage: a URL of a web page containing the latest news.
+        :return: None.
+
+        """
         self.mainpage = mainpage
         self.html = None
 
     def download_page(self):
+        """
+        The method re-downloads the news page and assigns it to a self.html attribute.
+
+        :return: None.
+
+        """
         resp = requests.get(self.mainpage)
         if resp.status_code != 200 or not resp.headers['content-type'].startswith("text/html"):
             raise DownloadFailedError()
@@ -31,10 +48,23 @@ class SiteParser(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def to_news(self):
+        """
+        The method parses a html saved to the self.html attribute.
+        WARNING: Override this method subclassing the parser.
+
+        :return: a list of News instances.
+
+        """
         return []
 
     @property
     def news(self):
+        """
+        Getter for a list of news.
+
+        :return: a list of News instances.
+
+        """
         try:
             self.download_page()
         except DownloadFailedError:
@@ -47,6 +77,10 @@ class SiteParser(metaclass=abc.ABCMeta):
 
 
 class AFGParser(SiteParser):
+    """
+    A Fleeting Glimpse parser.
+
+    """
 
     def __init__(self):
         SiteParser.__init__(self, "http://www.pinkfloydz.com/")
@@ -72,6 +106,10 @@ class AFGParser(SiteParser):
 
 
 class BrainDamageParser(SiteParser):
+    """
+    Brain Damage main page parser.
+
+    """
 
     def __init__(self):
         SiteParser.__init__(self, "http://www.brain-damage.co.uk/index.php")
@@ -82,6 +120,7 @@ class BrainDamageParser(SiteParser):
         article_parent = soup.find("table", class_="blog")
         if article_parent:
             articles = article_parent.find_all("table", class_="contentpaneopen")
+            # Even cells are texts, odd cells are headlines.
             for header_pt, text_pt in zip(articles[::2], articles[1::2]):
                 header_link = header_pt.find("a", class_="contentpagetitle")
                 header = None if not header_link else header_link.text.strip()
