@@ -135,3 +135,35 @@ class BrainDamageParser(SiteParser):
             logging.critical("Wrong page format: {}".format(self.mainpage))
         return parsed
 
+
+class PulseAndSpiritParser(SiteParser):
+    """
+    Pulse & Spirit main page parser.
+
+    """
+
+    def __init__(self):
+        SiteParser.__init__(self, "http://www.pulse-and-spirit.com/")
+
+    def to_news(self):
+        soup = BeautifulSoup(self.html, "lxml")
+        parsed = []
+        article_parent = soup.find("section", class_="content")
+        if article_parent:
+            articles = article_parent.find_all("article")
+            for article in articles:
+                dt = article.find("time")
+                datetime_string = None if not dt else time.strptime(dt["datetime"], "%Y-%m-%d %H:%M:%S")
+                header_link = article.find("a", rel="bookmark")
+                header = None if not header_link else header_link.text
+                link = None if not header_link else header_link["href"]
+                if not header or not link:
+                    continue
+                tags = article.find_all("a", rel="category tag")
+                tags = [tag.text for tag in tags]
+                parsed.append(News(self.mainpage, header, datetime_string, link, None, tuple(tags)))
+        else:
+            logging.critical("Wrong page format: {}".format(self.mainpage))
+        return parsed
+
+
