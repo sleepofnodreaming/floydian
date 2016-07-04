@@ -168,7 +168,7 @@ class PulseAndSpiritParser(SiteParser):
 
 class FloydianSlipParser(SiteParser):
     """
-    Pulse & Spirit main page parser.
+    Floydian Slip main page parser.
 
     """
 
@@ -199,7 +199,16 @@ class FloydianSlipParser(SiteParser):
                 if not header or not link:
                     continue
                 text = article.find("div", class_="entry").text
-                parsed.append(News(self.mainpage, header, time.strptime(datetime_string, self.time_format), link, text.strip(), None))
+                parsed.append(
+                    News(
+                        self.mainpage,
+                        header,
+                        time.strptime(datetime_string, self.time_format),
+                        link,
+                        text.strip(),
+                        None
+                    )
+                )
         else:
             logging.critical("Wrong page format: {}".format(self.mainpage))
         return parsed
