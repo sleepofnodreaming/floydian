@@ -1,6 +1,6 @@
-
 import abc
 import logging
+import re
 import requests
 import time
 import sys
@@ -8,7 +8,6 @@ from bs4 import BeautifulSoup
 from collections import namedtuple
 
 logging.basicConfig(format=u'[%(asctime)s] %(levelname)s. %(message)s', stream=sys.stderr)
-
 
 News = namedtuple("News", ["source", "name", "date", "link", "text", "tagging"])
 
@@ -166,4 +165,42 @@ class PulseAndSpiritParser(SiteParser):
             logging.critical("Wrong page format: {}".format(self.mainpage))
         return parsed
 
+
+class FloydianSlipParser(SiteParser):
+    """
+    Pulse & Spirit main page parser.
+
+    """
+
+    def __init__(self):
+        SiteParser.__init__(self, "http://www.floydianslip.com/news/")
+        self._date_parser = re.compile(r"^Posted (.*?) by", flags=re.U)
+        self.time_format = "%B %d, %Y"
+
+    def to_news(self):
+        soup = BeautifulSoup(self.html, "lxml")
+        parsed = []
+        article_parent = soup.find("div", class_="row contentArea last")
+        if article_parent:
+            articles = article_parent.find_all("div", id=re.compile('post-\d+'))
+            for article in articles:
+                dt = article.find("p", class_="blogSlug")
+                datetime_string = None if not dt else dt.text.strip()
+                if not datetime_string:
+                    continue
+                datetime_string = self._date_parser.search(datetime_string)
+                if not datetime_string:
+                    continue
+                datetime_string = datetime_string.group(1)
+
+                header_link = article.find("a", rel="bookmark")
+                header = None if not header_link else header_link.text
+                link = None if not header_link else header_link["href"]
+                if not header or not link:
+                    continue
+                text = article.find("div", class_="entry").text
+                parsed.append(News(self.mainpage, header, time.strptime(datetime_string, self.time_format), link, text.strip(), None))
+        else:
+            logging.critical("Wrong page format: {}".format(self.mainpage))
+        return parsed
 
