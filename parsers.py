@@ -92,13 +92,19 @@ class AFGParser(SiteParser):
             articles = article_parent.find_all("article")
             for article in articles:
                 dt = article.find("time")
-                datetime_string = None if not dt else time.strptime(dt["datetime"], "%Y-%m-%dT%H:%M:%S+00:00")
+                datetime = None if not dt else time.strptime(dt["datetime"], "%Y-%m-%dT%H:%M:%S+00:00")
                 header_link = article.find("a", rel="bookmark")
                 header = None if not header_link else header_link.text
                 link = None if not header_link else header_link["href"]
                 if not header or not link:
                     continue
-                parsed.append(News(self.mainpage, header, datetime_string, link, None, None))
+                text = article.find("div", class_=re.compile("entry-(content|summary)"))
+                if text:
+                    text = text.text.strip()
+                    continue_template = "Continue reading →"
+                    if text.endswith(continue_template):
+                        text = text[:-len(continue_template)]
+                parsed.append(News(self.mainpage, header, datetime, link, text, None))
         else:
             logging.critical("Wrong page format: {}".format(self.mainpage))
         return parsed
@@ -129,7 +135,8 @@ class BrainDamageParser(SiteParser):
                 date = text_pt.find("td", class_="createdate")
                 date = None if not date else date.text.strip()
                 date = None if not date else time.strptime(date, "%A, %d %B %Y")
-                parsed.append(News(self.mainpage, header, date, link, None, None))
+                text = text_pt.find_all("tr")[2].text.strip()
+                parsed.append(News(self.mainpage, header, date, link, text, None))
         else:
             logging.critical("Wrong page format: {}".format(self.mainpage))
         return parsed
@@ -158,9 +165,12 @@ class PulseAndSpiritParser(SiteParser):
                 link = None if not header_link else header_link["href"]
                 if not header or not link:
                     continue
+                text = article.find("div", class_="entry-summary")
                 tags = article.find_all("a", rel="category tag")
                 tags = [tag.text for tag in tags]
-                parsed.append(News(self.mainpage, header, datetime_string, link, None, tuple(tags)))
+                parsed.append(
+                    News(self.mainpage, header, datetime_string, link, None if not text else text.text.strip(), tuple(tags))
+                )
         else:
             logging.critical("Wrong page format: {}".format(self.mainpage))
         return parsed
