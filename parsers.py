@@ -16,6 +16,20 @@ class DownloadFailedError(Exception):
     pass
 
 
+def to_paragraphs(text):
+    """
+    The functions splits a text into paragraphs.
+
+    :param text: a string.
+    :return: a list of paragraphs.
+
+    """
+    if not text:
+        return []
+    ps = [i.strip() for i in text.split("\n")]
+    return [p for p in ps if p]
+
+
 class SiteParser(metaclass=abc.ABCMeta):
     """
     A base parser class.
@@ -104,7 +118,7 @@ class AFGParser(SiteParser):
                     continue_template = "Continue reading →"
                     if text.endswith(continue_template):
                         text = text[:-len(continue_template)]
-                parsed.append(News(self.mainpage, header, datetime, link, text, None))
+                parsed.append(News(self.mainpage, header, datetime, link, to_paragraphs(text), []))
         else:
             logging.critical("Wrong page format: {}".format(self.mainpage))
         return parsed
@@ -135,8 +149,9 @@ class BrainDamageParser(SiteParser):
                 date = text_pt.find("td", class_="createdate")
                 date = None if not date else date.text.strip()
                 date = None if not date else time.strptime(date, "%A, %d %B %Y")
-                text = text_pt.find_all("tr")[2].text.strip()
-                parsed.append(News(self.mainpage, header, date, link, text, None))
+                text = text_pt.find_all("tr")
+                paragraphs = [] if not len(text) > 2 else to_paragraphs(text[2].text.strip())
+                parsed.append(News(self.mainpage, header, date, link, paragraphs, []))
         else:
             logging.critical("Wrong page format: {}".format(self.mainpage))
         return parsed
@@ -169,7 +184,14 @@ class PulseAndSpiritParser(SiteParser):
                 tags = article.find_all("a", rel="category tag")
                 tags = [tag.text for tag in tags]
                 parsed.append(
-                    News(self.mainpage, header, datetime_string, link, None if not text else text.text.strip(), tuple(tags))
+                    News(
+                        self.mainpage,
+                        header,
+                        datetime_string,
+                        link,
+                        [] if not text else to_paragraphs(text.text.strip()),
+                        tags
+                    )
                 )
         else:
             logging.critical("Wrong page format: {}".format(self.mainpage))
@@ -215,11 +237,10 @@ class FloydianSlipParser(SiteParser):
                         header,
                         time.strptime(datetime_string, self.time_format),
                         link,
-                        text.strip(),
+                        to_paragraphs(None if not text else text.strip()),
                         None
                     )
                 )
         else:
             logging.critical("Wrong page format: {}".format(self.mainpage))
         return parsed
-
