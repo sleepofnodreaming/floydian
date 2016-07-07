@@ -1,0 +1,25 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+        "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+    <title>Daily Pink Floyd Mailer</title>
+</head>
+<body>
+<ul>
+    {% for n in news %}
+    <li>
+        <div>
+            <a href="{{ n.link }}">{{ n.name }}</a>
+        </div>
+        <div>
+            {% for i in n.text %}
+            <p>
+                {{i}}
+            </p>
+            {% endfor %}
+        </div>
+    </li>
+    {% endfor %}
+</ul>
+</body>
+</html>
