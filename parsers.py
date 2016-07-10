@@ -36,6 +36,7 @@ class SiteParser(metaclass=abc.ABCMeta):
 
     """
     name = ""
+    lang = "en"
 
     def __init__(self, mainpage):
         """
@@ -121,7 +122,8 @@ class AFGParser(SiteParser):
                     continue_template = "Continue reading →"
                     if text.endswith(continue_template):
                         text = text[:-len(continue_template)]
-                parsed.append(News(self.mainpage, header, datetime, link, to_paragraphs(text), []))
+                txt = to_paragraphs(text)
+                parsed.append(News(self.mainpage, header, datetime, link, txt, []))
         else:
             logging.critical("Wrong page format: {}".format(self.mainpage))
         return parsed
@@ -169,6 +171,7 @@ class PulseAndSpiritParser(SiteParser):
     """
 
     name = "Pulse & Spirit"
+    lang = "de"
 
     def __init__(self):
         SiteParser.__init__(self, "http://www.pulse-and-spirit.com/")
@@ -188,6 +191,7 @@ class PulseAndSpiritParser(SiteParser):
                 if not header or not link:
                     continue
                 text = article.find("div", class_="entry-summary")
+                ptext = [] if not text else to_paragraphs(text.text.strip())
                 tags = article.find_all("a", rel="category tag")
                 tags = [tag.text for tag in tags]
                 parsed.append(
@@ -196,7 +200,7 @@ class PulseAndSpiritParser(SiteParser):
                         header,
                         datetime_string,
                         link,
-                        [] if not text else to_paragraphs(text.text.strip()),
+                        ptext,
                         tags
                     )
                 )
@@ -240,14 +244,15 @@ class FloydianSlipParser(SiteParser):
                 if not header or not link:
                     continue
                 text = article.find("div", class_="entry").text
+                ptext = to_paragraphs(None if not text else text.strip())
                 parsed.append(
                     News(
                         self.mainpage,
                         header,
                         time.strptime(datetime_string, self.time_format),
                         link,
-                        to_paragraphs(None if not text else text.strip()),
-                        None
+                        ptext,
+                        []
                     )
                 )
         else:
