@@ -1,4 +1,5 @@
 from collections import namedtuple
+from datetime import datetime
 from pony import orm
 
 import logging
@@ -24,17 +25,17 @@ class SiteSnapshot(db.Entity):
 
     """
     url = orm.Required(str)
-    timestamp = orm.Required(orm.datetime)
+    timestamp = orm.Required(datetime)
     source = orm.Required("Source", reverse="snapshot")
     is_latest = orm.Required(bool)
 
 
 @orm.db_session
-def get_latest_post_urls(parser_names):
+def get_latest_post_urls():
     """
     List all sources' latest posts.
 
-    :param parser_names: names of sources we are interested in;
+    :param parser_names: names of sources we are interested in& If empty, all names are included;
     :return: {source name (str): latest post url (str)}.
 
     """
@@ -42,7 +43,7 @@ def get_latest_post_urls(parser_names):
         orm.select(p for p in SiteSnapshot)
             .prefetch(Source.name)
             .filter(
-            lambda x: x.is_latest and x.source.name in parser_names
+            lambda x: x.is_latest
         )
     )
     return {i.source.name: i.url for i in latest_posts}
@@ -73,4 +74,5 @@ def update_latest_post_urls(data):
 
 if __name__ == '__main__':
     db.generate_mapping(create_tables=True)
+    print(get_latest_post_urls())
 
