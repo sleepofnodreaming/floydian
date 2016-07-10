@@ -35,6 +35,7 @@ class SiteParser(metaclass=abc.ABCMeta):
     A base parser class.
 
     """
+    name = ""
 
     def __init__(self, mainpage):
         """
@@ -95,6 +96,8 @@ class AFGParser(SiteParser):
 
     """
 
+    name = "A Fleeting Glimpse"
+
     def __init__(self):
         SiteParser.__init__(self, "http://www.pinkfloydz.com/")
 
@@ -130,6 +133,8 @@ class BrainDamageParser(SiteParser):
 
     """
 
+    name = "Brain Damage"
+
     def __init__(self):
         SiteParser.__init__(self, "http://www.brain-damage.co.uk/index.php")
 
@@ -162,6 +167,8 @@ class PulseAndSpiritParser(SiteParser):
     Pulse & Spirit main page parser.
 
     """
+
+    name = "Pulse & Spirit"
 
     def __init__(self):
         SiteParser.__init__(self, "http://www.pulse-and-spirit.com/")
@@ -203,6 +210,8 @@ class FloydianSlipParser(SiteParser):
     Floydian Slip main page parser.
 
     """
+
+    name = "Floydian Slip"
 
     def __init__(self):
         SiteParser.__init__(self, "http://www.floydianslip.com/news/")
