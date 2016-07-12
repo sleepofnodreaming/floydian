@@ -14,6 +14,10 @@ NewsStamp = namedtuple("NewsStamp", ["parser_name", "parser_newsfeed", "news_url
 
 
 class Source(db.Entity):
+    """
+    A model corresponding to sites used as data sources.
+
+    """
     name = orm.Required(str, 255, unique=True)
     newsfeed = orm.Required(str, 1000, unique=True)
     snapshot = orm.Set("SiteSnapshot")
@@ -71,6 +75,7 @@ def update_latest_post_urls(data):
             if old_latest_post:
                 old_latest_post.delete()
         SiteSnapshot(source=source, is_latest=True, timestamp=post_tup.news_extraction_time, url=post_tup.news_url)
+
 
 if __name__ == '__main__':
     db.generate_mapping(create_tables=True)
