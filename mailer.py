@@ -1,3 +1,4 @@
+#!/usr/local/bin/python3
 import datetime
 import getpass
 import jinja2
@@ -16,7 +17,9 @@ PARSERS = [
     PulseAndSpiritParser(),
 ]
 
-SETTINGS = json.loads(open("cfg.json").read()) # todo add config validation.
+SELF_PATH = os.path.dirname(os.path.realpath(__file__))
+
+SETTINGS = json.loads(open(os.path.join(SELF_PATH, "cfg.json")).read()) # todo add config validation.
 
 
 def translate(text: [str], from_lang: str, to_lang: str) -> ([str], bool):
@@ -50,8 +53,8 @@ class SMTPMailer(object):
 
     """
 
-    SERVER = 'smtp.yandex.ru'
-    PORT = 465
+    SERVER = SETTINGS["mailer"]["server"]
+    PORT = SETTINGS["mailer"]["port"]
 
     def __init__(self, email: str, passwd: str):
         """
@@ -130,13 +133,13 @@ def get_latest_news(en_only: bool=True) -> (([News], bool), [NewsStamp]):
 
 
 if __name__ == '__main__':
-    mail = input("Email: ")
-    passwd = getpass.getpass()
+    mail = SETTINGS["mailer"]["sender"]
+    passwd = getpass.getpass(prompt="Password for {}: ".format(mail))
     db.generate_mapping(create_tables=True)
     newsfeed, stamps = get_latest_news()
     if newsfeed:
         with SMTPMailer(mail, passwd) as mailer:
-            mailer.mailto(newsfeed, [SETTINGS["mail"]])
+            mailer.mailto(newsfeed, SETTINGS["sendto"])
         update_latest_post_urls(stamps)
     else:
         logging.info("There're no updates.")
