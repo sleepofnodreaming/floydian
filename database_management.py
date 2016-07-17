@@ -8,7 +8,7 @@ import sys
 
 logging.basicConfig(format=u'[%(asctime)s] %(levelname)s. %(message)s', stream=sys.stderr, level=logging.INFO)
 
-db = orm.Database('sqlite', (os.path.dirname(os.path.realpath(__file__)), 'aggregations.db'), create_db=True)
+db = orm.Database('sqlite', os.path.join(os.path.dirname(os.path.realpath(__file__)), 'aggregations.db'), create_db=True)
 
 
 NewsStamp = namedtuple("NewsStamp", ["parser_name", "parser_newsfeed", "news_url", "news_extraction_time"])
