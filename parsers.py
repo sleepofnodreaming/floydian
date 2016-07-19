@@ -9,7 +9,7 @@ from collections import namedtuple
 
 logging.basicConfig(format=u'[%(asctime)s] %(levelname)s. %(message)s', stream=sys.stderr)
 
-News = namedtuple("News", ["source", "name", "date", "link", "text", "tagging", "language"])
+News = namedtuple("News", ["parser", "name", "date", "link", "text", "tagging"])
 
 
 class DownloadFailedError(Exception):
@@ -123,7 +123,7 @@ class AFGParser(SiteParser):
                     if text.endswith(continue_template):
                         text = text[:-len(continue_template)]
                 txt = to_paragraphs(text)
-                parsed.append(News(self.mainpage, header, datetime, link, txt, [], self.lang))
+                parsed.append(News(self, header, datetime, link, txt, []))
         else:
             logging.critical("Wrong page format: {}".format(self.mainpage))
         return parsed
@@ -158,7 +158,7 @@ class BrainDamageParser(SiteParser):
                 date = None if not date else time.strptime(date, "%A, %d %B %Y")
                 text = text_pt.find_all("tr")
                 paragraphs = [] if not len(text) > 2 else to_paragraphs(text[2].text.strip())
-                parsed.append(News(self.mainpage, header, date, link, paragraphs, [], self.lang))
+                parsed.append(News(self, header, date, link, paragraphs, []))
         else:
             logging.critical("Wrong page format: {}".format(self.mainpage))
         return parsed
@@ -196,13 +196,12 @@ class PulseAndSpiritParser(SiteParser):
                 tags = [tag.text for tag in tags]
                 parsed.append(
                     News(
-                        self.mainpage,
+                        self,
                         header,
                         datetime_string,
                         link,
                         ptext,
                         tags,
-                        self.lang
                     )
                 )
         else:
@@ -248,13 +247,12 @@ class FloydianSlipParser(SiteParser):
                 ptext = to_paragraphs(None if not text else text.strip())
                 parsed.append(
                     News(
-                        self.mainpage,
+                        self,
                         header,
                         time.strptime(datetime_string, self.time_format),
                         link,
                         ptext,
                         [],
-                        self.lang
                     )
                 )
         else:
