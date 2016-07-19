@@ -2,13 +2,13 @@
 import datetime
 import getpass
 import jinja2
-import json
-import os
-import requests
 import smtplib
+
+from configuration import SETTINGS, SELF_PATH
 from database_management import *
-from parsers import *
 from email.mime.text import MIMEText
+from parsers import *
+from postproc import Converters, filter_feed, IsPreviewOrSonglist
 
 PARSERS = [
     AFGParser(),
@@ -16,35 +16,6 @@ PARSERS = [
     FloydianSlipParser(),
     PulseAndSpiritParser(),
 ]
-
-SELF_PATH = os.path.dirname(os.path.realpath(__file__))
-
-SETTINGS = json.loads(open(os.path.join(SELF_PATH, "cfg.json")).read()) # todo add config validation.
-
-
-def translate(text: [str], from_lang: str, to_lang: str) -> ([str], bool):
-    """
-    Translate news texts using Yandex translator API.
-
-    :param text: a list of text pieces to translate;
-    :param from_lang: a code of a source language (see  the API reference to get a list of possible values);
-    :param to_lang: a code of a language to translate the texts into.
-    :return: a list of translated texts, in case of success, and the initial one, otherwise;
-    a flag showing whether the texts were translated.
-
-    """
-    result = requests.get("https://translate.yandex.net/api/v1.5/tr.json/translate", params={
-        "key": SETTINGS["translate-key"],
-        "text": text,
-        "lang": "{}-{}".format(from_lang, to_lang),
-        "format": "plain"
-    })
-    response_json = json.loads(result.text)
-    if response_json["code"] == 200:
-        return response_json["text"], True
-    else:
-        logging.warning("Translation failed: {} -> {}.".format(from_lang, to_lang))
-        return text, False
 
 
 class SMTPMailer(object):
@@ -63,7 +34,7 @@ class SMTPMailer(object):
         :return: None.
 
         """
-        jloader = jinja2.FileSystemLoader(os.path.dirname(os.path.realpath(__file__)))
+        jloader = jinja2.FileSystemLoader(SELF_PATH)
         self.template = jinja2.Environment(loader=jloader).get_template("message_template.html")
         self.my_email = email
         self._pwd = passwd
@@ -110,7 +81,7 @@ def get_latest_news(en_only: bool=True) -> (([News], bool), [NewsStamp]):
     translation_used = False
 
     for parser in PARSERS:
-        news = parser.news
+        news = filter_feed(parser.news, IsPreviewOrSonglist())
         if parser.name in breakpoints:
             try:
                 url_list = [n.link for n in news]
@@ -120,7 +91,7 @@ def get_latest_news(en_only: bool=True) -> (([News], bool), [NewsStamp]):
         if en_only and parser.lang != "en":
             for n in news:
                 if n.text:
-                    updated_text, translated_successfully = translate(n.text, parser.lang, "en")
+                    updated_text, translated_successfully = Converters.translate(n.text, parser.lang, "en")
                     if translated_successfully:
                         translation_used = True
                         n.text.clear()

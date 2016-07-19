@@ -1,4 +1,10 @@
+"""
+The module is responsible for getting the info about the previous news letter from the database.
+
+"""
+
 from collections import namedtuple
+from configuration import SELF_PATH
 from datetime import datetime
 from pony import orm
 
@@ -7,11 +13,10 @@ import os
 import sys
 
 logging.basicConfig(format=u'[%(asctime)s] %(levelname)s. %(message)s', stream=sys.stderr, level=logging.INFO)
-# DATABASE_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'aggregations.db')
-DATABASE_FILE = ":memory:"
+DATABASE_FILE = os.path.join(SELF_PATH, 'aggregations.db')
+# DATABASE_FILE = ":memory:"
 
 db = orm.Database('sqlite', DATABASE_FILE, create_db=True)
-
 
 NewsStamp = namedtuple("NewsStamp", ["parser_name", "parser_newsfeed", "news_url", "news_extraction_time"])
 
@@ -40,10 +45,10 @@ class SiteSnapshot(db.Entity):
 @orm.db_session
 def get_latest_post_urls() -> {str: str}:
     """
-    List all sources' latest posts.
+    Lists all sources' latest posts.
 
-    :param parser_names: names of sources we are interested in& If empty, all names are included;
-    :return: {source name (str): latest post url (str)}.
+    :param parser_names: names of sources we are interested in; If empty, all names are included;
+    :return: {source name: latest post url}.
 
     """
     latest_posts = (
@@ -59,10 +64,10 @@ def get_latest_post_urls() -> {str: str}:
 @orm.db_session
 def update_latest_post_urls(data: [NewsStamp]) -> None:
     """
-    Update the data about latest posts.
+    Updates the data about latest posts.
 
     :param data: a list of NewsStamp objects.
-    :return: None.
+    :return: -
 
     """
     for post_tup in data:
@@ -83,4 +88,3 @@ def update_latest_post_urls(data: [NewsStamp]) -> None:
 if __name__ == '__main__':
     db.generate_mapping(create_tables=True)
     print(get_latest_post_urls())
-
