@@ -1,3 +1,8 @@
+"""
+Module containing a set of tools to postprocess a newsfeed.
+
+"""
+
 import abc
 import json
 import requests
