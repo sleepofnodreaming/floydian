@@ -1,5 +1,5 @@
+import abc
 import json
-
 import requests
 
 from configuration import SETTINGS
@@ -11,17 +11,28 @@ import sys
 logging.basicConfig(format=u'[%(asctime)s] %(levelname)s. %(message)s', stream=sys.stderr)
 
 
-class Predicate(object):
+class Predicate(metaclass=abc.ABCMeta):
+    """
+    Base abstract class for predicate creation.
+
+    """
 
     apply_to = []
 
+    @abc.abstractmethod
     def __call__(self, data: News) -> bool:
         return True
 
 
 class IsPreviewOrSonglist(Predicate):
+    """
+    In Floydian Slip, there is a type of posts which is not needed in the feed:
+    these are posts about Floydian Slip broadcast.
+    This predicate removes them from the feed.
 
-    apply_to = ["A Fleeting Glimpse", ]
+    """
+
+    apply_to = ["Floydian Slip", ]
 
     def __init__(self):
         self.is_preview = re.compile(
@@ -66,7 +77,7 @@ class IsPreviewOrSonglist(Predicate):
         False
 
         """
-        if self.apply_to and data.parser.name not in self.apply_to:
+        if data.parser.name in self.apply_to:
             is_preview = self.is_preview.search(data.link)
             if is_preview:
                 logging.warning("Ignored: {} ({} post)".format(data.link, is_preview.group(1)))
