@@ -1,13 +1,14 @@
 #!/usr/local/bin/python3
 import datetime
 import getpass
-import smtplib
-from email.mime.text import MIMEText
-
 import jinja2
+import smtplib
+import sys
+
 
 from configuration import SETTINGS, SELF_PATH
 from database_management import update_latest_post_urls
+from email.mime.text import MIMEText
 from parsers import *
 from postproc import *
 from typing import Tuple
