@@ -10,11 +10,9 @@ from pony import orm
 
 import logging
 import os
-import sys
 
-# logging.basicConfig(format=u'[%(asctime)s] %(levelname)s. %(message)s', stream=sys.stderr, level=logging.INFO)
-# DATABASE_FILE = os.path.join(SELF_PATH, 'aggregations.db')
-DATABASE_FILE = ":memory:"
+DATABASE_FILE = os.path.join(SELF_PATH, 'aggregations.db')
+# DATABASE_FILE = ":memory:"
 
 db = orm.Database('sqlite', DATABASE_FILE, create_db=True)
 
