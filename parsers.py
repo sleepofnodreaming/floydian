@@ -3,11 +3,9 @@ import logging
 import re
 import requests
 import time
-import sys
 from bs4 import BeautifulSoup
 from collections import namedtuple
 
-logging.basicConfig(format=u'[%(asctime)s] %(levelname)s. %(message)s', stream=sys.stderr)
 
 News = namedtuple("News", ["parser", "name", "date", "link", "text", "tagging"])
 
@@ -16,11 +14,11 @@ class DownloadFailedError(Exception):
     pass
 
 
-def to_paragraphs(text):
+def to_paragraphs(text: str) -> [str]:
     """
     The functions splits a text into paragraphs.
 
-    :param text: a string.
+    :param text: a text of a post, where paragraphs are separated with '\n's.
     :return: a list of paragraphs.
 
     """

@@ -1,14 +1,18 @@
 #!/usr/local/bin/python3
 import datetime
 import getpass
-import jinja2
 import smtplib
+from email.mime.text import MIMEText
+
+import jinja2
 
 from configuration import SETTINGS, SELF_PATH
-from database_management import *
-from email.mime.text import MIMEText
+from database_management import update_latest_post_urls
 from parsers import *
-from postproc import Converters, filter_feed, IsPreviewOrSonglist
+from postproc import *
+from typing import Tuple
+
+logging.basicConfig(format=u'[%(asctime)s] %(levelname)s. %(message)s', stream=sys.stderr, level=logging.INFO)
 
 PARSERS = [
     AFGParser(),
@@ -65,29 +69,22 @@ class SMTPMailer(object):
         self.server_connection.sendmail(self.my_email, addressee, msg.as_string())
 
 
-def get_latest_news(en_only: bool=True) -> (([News], bool), [NewsStamp]):
+def get_latest_news(filters: Tuple[Predicate] = (), en_only: bool=True) -> ([News], datetime.datetime, bool):
     """
     Download the latest news from sources present in a PARSERS list.
 
+    :param filters: a tuple of filters to apply to the news feed.
     :param en_only: a flag showing whether news not in English should be translated.
-    :return: downloaded newsfeed and a list of the last post published for each source.
+    :return: downloaded newsfeed, timestamp, a flag showing whether a translation's used.
 
     """
-    breakpoints = get_latest_post_urls()
+    newsfeed = []
 
-    newsfeed, stamps = [], []
-
-    ts = datetime.now()
+    timestamp = datetime.datetime.now()
     translation_used = False
 
     for parser in PARSERS:
-        news = filter_feed(parser.news, IsPreviewOrSonglist())
-        if parser.name in breakpoints:
-            try:
-                url_list = [n.link for n in news]
-                news = news[:url_list.index(breakpoints[parser.name])]
-            except ValueError:
-                logging.error("Incorrect latest post in the database: parser {}".format(parser.name))
+        news = filter_feed(parser.news, *filters)
         if en_only and parser.lang != "en":
             for n in news:
                 if n.text:
@@ -97,21 +94,21 @@ def get_latest_news(en_only: bool=True) -> (([News], bool), [NewsStamp]):
                         n.text.clear()
                         n.text.extend(updated_text)
         newsfeed.extend(news)
-        if news:
-            stamps.append(NewsStamp(parser.name, parser.mainpage, news[0].link, ts))
-
-    return (newsfeed, translation_used), stamps
+    return newsfeed, timestamp, translation_used
 
 
 if __name__ == '__main__':
+    filters = (
+        SentBefore(),
+        IsPreviewOrSonglist(),
+    )
     mail = SETTINGS["mailer"]["sender"]
     passwd = getpass.getpass(prompt="Password for {}: ".format(mail))
-    db.generate_mapping(create_tables=True)
-    newsfeed, stamps = get_latest_news()
+    newsfeed, timestamp, translation_used = get_latest_news(filters)
     if newsfeed:
         with SMTPMailer(mail, passwd) as mailer:
-            mailer.mailto(newsfeed, SETTINGS["sendto"])
-        update_latest_post_urls(stamps)
+            mailer.mailto((newsfeed, translation_used), SETTINGS["sendto"])
+        update_latest_post_urls(timestamp, newsfeed)
     else:
         logging.info("There're no updates.")
 

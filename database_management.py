@@ -3,22 +3,20 @@ The module is responsible for getting the info about the previous news letter fr
 
 """
 
-from collections import namedtuple
 from configuration import SELF_PATH
 from datetime import datetime
+from parsers import News
 from pony import orm
 
 import logging
 import os
 import sys
 
-logging.basicConfig(format=u'[%(asctime)s] %(levelname)s. %(message)s', stream=sys.stderr, level=logging.INFO)
-DATABASE_FILE = os.path.join(SELF_PATH, 'aggregations.db')
-# DATABASE_FILE = ":memory:"
+# logging.basicConfig(format=u'[%(asctime)s] %(levelname)s. %(message)s', stream=sys.stderr, level=logging.INFO)
+# DATABASE_FILE = os.path.join(SELF_PATH, 'aggregations.db')
+DATABASE_FILE = ":memory:"
 
 db = orm.Database('sqlite', DATABASE_FILE, create_db=True)
-
-NewsStamp = namedtuple("NewsStamp", ["parser_name", "parser_newsfeed", "news_url", "news_extraction_time"])
 
 
 class Source(db.Entity):
@@ -43,12 +41,11 @@ class SiteSnapshot(db.Entity):
 
 
 @orm.db_session
-def get_latest_post_urls() -> {str: str}:
+def get_latest_post_urls() -> {str}:
     """
     Lists all sources' latest posts.
 
-    :param parser_names: names of sources we are interested in; If empty, all names are included;
-    :return: {source name: latest post url}.
+    :return: set of latest posts' urls.
 
     """
     latest_posts = (
@@ -58,33 +55,39 @@ def get_latest_post_urls() -> {str: str}:
             lambda x: x.is_latest
         )
     )
-    return {i.source.name: i.url for i in latest_posts}
+    return {i.url for i in latest_posts}
 
 
 @orm.db_session
-def update_latest_post_urls(data: [NewsStamp]) -> None:
+def update_latest_post_urls(ts: datetime, data: [News]) -> None:
     """
     Updates the data about latest posts.
 
-    :param data: a list of NewsStamp objects.
+    :param ts: timestamp;
+    :param data: a list of News objects.
     :return: -
 
     """
-    for post_tup in data:
-        if not Source.exists(name=post_tup.parser_name, newsfeed=post_tup.parser_newsfeed):
-            logging.info("A new source added: name = {}, newsfeed = {}".format(
-                post_tup.parser_name,
-                post_tup.parser_newsfeed
-            ))
-            source = Source(name=post_tup.parser_name, newsfeed=post_tup.parser_newsfeed)
+    sources = {}
+    for post in data:
+        src_name, src_mp = post.parser.name, post.parser.mainpage
+        if (src_name, src_mp) not in sources:
+            if not Source.exists(name=src_name, newsfeed=src_mp):
+                logging.info("A new source added: name = {}, newsfeed = {}".format(src_name, src_mp))
+                source = Source(name=src_name, newsfeed=src_mp)
+            else:
+                source = Source.get(name=src_name, newsfeed=src_mp)
+            sources[(src_name, src_mp)] = source
+            old_latest_posts = orm.select(p for p in SiteSnapshot if p.source == source)
+            if old_latest_posts:
+                logging.info("Previous day's news for source '{}' found: {}.".format(src_name, len(old_latest_posts)))
+                for p in old_latest_posts:
+                    p.delete()
         else:
-            source = Source.get(name=post_tup.parser_name, newsfeed=post_tup.parser_newsfeed)
-            old_latest_post = SiteSnapshot.get(source=source)
-            if old_latest_post:
-                old_latest_post.delete()
-        SiteSnapshot(source=source, is_latest=True, timestamp=post_tup.news_extraction_time, url=post_tup.news_url)
+            source = sources[(src_name, src_mp)]
+        logging.info("Added new post to the database: {}".format(post.link))
+        SiteSnapshot(source=source, is_latest=True, timestamp=ts, url=src_mp)
+    logging.info("Entries in the database: {}".format(len(orm.select(p for p in SiteSnapshot))))
 
 
-if __name__ == '__main__':
-    db.generate_mapping(create_tables=True)
-    print(get_latest_post_urls())
+db.generate_mapping(create_tables=True)

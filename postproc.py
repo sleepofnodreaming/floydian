@@ -8,12 +8,10 @@ import json
 import requests
 
 from configuration import SETTINGS
+from database_management import get_latest_post_urls
 from parsers import News
 import logging
 import re
-import sys
-
-logging.basicConfig(format=u'[%(asctime)s] %(levelname)s. %(message)s', stream=sys.stderr)
 
 
 class Predicate(metaclass=abc.ABCMeta):
@@ -42,7 +40,7 @@ class IsPreviewOrSonglist(Predicate):
     def __init__(self):
         self.is_preview = re.compile(
             "^http://www.floydianslip.com/news/\d+/\d+/floydian-slip-(preview|songlist)-\d+/$",
-            flags=re.I|re.U
+            flags=re.I | re.U
         )
 
     def __call__(self, data: News) -> bool:
@@ -90,6 +88,19 @@ class IsPreviewOrSonglist(Predicate):
         return True
 
 
+class SentBefore(Predicate):
+    def __init__(self):
+        self.sent_before = get_latest_post_urls()
+
+    def __call__(self, data: News) -> bool:
+        out = data.link not in self.sent_before
+        if not out:
+            logging.warning("Ignored: {} ({} post)".format(data.link, "previously published"))
+        else:
+            logging.info("Approved: {} (not {} post)".format(data.link, "previously published"))
+        return out
+
+
 def filter_feed(newsfeed: [News], *predicates: Predicate) -> [News]:
     """
     Filter the feed with a set of admitting predicates given.
@@ -103,7 +114,6 @@ def filter_feed(newsfeed: [News], *predicates: Predicate) -> [News]:
 
 
 class Converters(object):
-
     @staticmethod
     def translate(text: [str], from_lang: str, to_lang: str) -> ([str], bool):
         """
