@@ -68,7 +68,7 @@ def update_latest_post_urls(ts: datetime, data: [News]) -> None:
     """
     sources = {}
     for post in data:
-        src_name, src_mp = post.parser.name, post.parser.mainpage
+        src_name, src_mp, text_link = post.parser.name, post.parser.mainpage, post.link
         if (src_name, src_mp) not in sources:
             if not Source.exists(name=src_name, newsfeed=src_mp):
                 logging.info("A new source added: name = {}, newsfeed = {}".format(src_name, src_mp))
@@ -84,8 +84,12 @@ def update_latest_post_urls(ts: datetime, data: [News]) -> None:
         else:
             source = sources[(src_name, src_mp)]
         logging.info("Added new post to the database: {}".format(post.link))
-        SiteSnapshot(source=source, is_latest=True, timestamp=ts, url=src_mp)
+        SiteSnapshot(source=source, is_latest=True, timestamp=ts, url=text_link)
     logging.info("Entries in the database: {}".format(len(orm.select(p for p in SiteSnapshot))))
 
 
 db.generate_mapping(create_tables=True)
+
+if __name__ == "__main__":
+    for i in get_latest_post_urls():
+        print(i)
