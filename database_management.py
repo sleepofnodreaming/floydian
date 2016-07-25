@@ -91,5 +91,7 @@ def update_latest_post_urls(ts: datetime, data: [News]) -> None:
 db.generate_mapping(create_tables=True)
 
 if __name__ == "__main__":
-    for i in get_latest_post_urls():
-        print(i)
+    with orm.db_session:
+        print(len(orm.select(p for p in SiteSnapshot)))
+        for i in orm.select(p for p in SiteSnapshot):
+            print(i.url, i.timestamp)
