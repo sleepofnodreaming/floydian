@@ -59,7 +59,10 @@ def get_latest_post_urls() -> {str}:
 @orm.db_session
 def update_latest_post_urls(ts: datetime, data: [News]) -> None:
     """
-    Updates the data about latest posts.
+    Updates the data about latest posts:
+
+    If a shop is absent from a newsfeed, nothing changes for entries related to it;
+    otherwise, all the entries related to the shop are deleted, and the new set of entries' added.
 
     :param ts: timestamp;
     :param data: a list of News objects.
