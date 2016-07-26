@@ -6,42 +6,36 @@ from pony import orm
 SELF_PATH = os.path.dirname(os.path.realpath(__file__))
 
 
-@pytest.yield_fixture(scope="function")
+@pytest.yield_fixture(scope="session")
 def database():
     with orm.db_session:
+        orm.delete(i for i in SiteSnapshot)
         yield db
         db.rollback()
 
-@pytest.fixture(scope="session")
-def newsfeeds() -> [([News, News])]:
+
+def newsfeeds():
     with open(os.path.join(SELF_PATH, "examples/newsfeeds.pickle"), "rb") as f:
         data = pickle.load(f)
-        return data
+        ((full_overlap_two, full_overlap_one), (exclusive_one, exclusive_two)) = data
+        return [
+            (full_overlap_one, 0, 26),
+            (full_overlap_two, 26, 4),
+            (exclusive_one, 4, len(exclusive_one) + 2),
+            (exclusive_two, len(exclusive_one) + 2, len(exclusive_one) + len(exclusive_two)),
+        ]
 
 
-# todo convert this to many tests arranged chronologically.
-@pytest.mark.usefixtures("database", "newsfeeds")
-def test_filling_database(newsfeeds):
+@pytest.mark.usefixtures("database")
+@pytest.mark.parametrize("feed,b,a", newsfeeds())
+def test_filling_database(feed, b, a):
     """
     The test checks whether the replacement of news page stamps is executed correctly.
 
     """
-    # Making the news set empty.
-    fst_set, scd_set = newsfeeds
-    orm.delete(i for i in SiteSnapshot)
-    assert len(orm.select(i for i in SiteSnapshot)) == 0
+    # If a test failed here, parametrized tests' order may have become random :(
+    assert len(orm.select(i for i in SiteSnapshot)) == b
     # Then, trying to add four news from the first set.
     td = datetime.now()
-    fst_pt, scd_pt = fst_set
-    # Here, a data set of 26 news from four sources are added to the db.
-    update_latest_post_urls(td, scd_pt)
-    assert len(orm.select(i for i in SiteSnapshot)) == 26
-    # Here, however, the
-    update_latest_post_urls(td, fst_pt)
-    assert len(orm.select(i for i in SiteSnapshot)) == 4
-    fst_pt, scd_pt = scd_set
-    update_latest_post_urls(td, fst_pt)
-    assert len(orm.select(i for i in SiteSnapshot)) == len(fst_pt) + 2
-    update_latest_post_urls(td, scd_pt)
-    assert len(orm.select(i for i in SiteSnapshot)) == len(fst_pt) + len(scd_pt)
-
+    update_latest_post_urls(td, feed)
+    assert len(orm.select(i for i in SiteSnapshot)) == a
