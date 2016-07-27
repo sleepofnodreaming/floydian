@@ -70,7 +70,7 @@ class SMTPMailer(object):
         self.server_connection.sendmail(self.my_email, addressee, msg.as_string())
 
 
-def get_latest_news(filters: Tuple[Predicate] = (), en_only: bool=True) -> ([News], datetime.datetime, bool):
+def get_latest_news(filters: Tuple[Predicate] = (), en_only: bool=True) -> ([News], bool):
     """
     Download the latest news from sources present in a PARSERS list.
 
@@ -95,7 +95,8 @@ def get_latest_news(filters: Tuple[Predicate] = (), en_only: bool=True) -> ([New
                         n.text.clear()
                         n.text.extend(updated_text)
         newsfeed.extend(news)
-    return newsfeed, timestamp, translation_used
+        update_latest_post_urls(timestamp, parser.news)
+    return newsfeed, translation_used
 
 
 if __name__ == '__main__':
@@ -105,11 +106,10 @@ if __name__ == '__main__':
     )
     mail = SETTINGS["mailer"]["sender"]
     passwd = getpass.getpass(prompt="Password for {}: ".format(mail))
-    newsfeed, timestamp, translation_used = get_latest_news(filters)
+    newsfeed, translation_used = get_latest_news(filters)
     if newsfeed:
         with SMTPMailer(mail, passwd) as mailer:
             mailer.mailto((newsfeed, translation_used), SETTINGS["sendto"])
-        update_latest_post_urls(timestamp, newsfeed)
     else:
         logging.info("There're no updates.")
 
