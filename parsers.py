@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 from collections import namedtuple
 
 
-News = namedtuple("News", ["parser", "name", "date", "link", "text", "tagging"])
+RawNews = namedtuple("RawNews", ["parser", "name", "date", "link", "text", "tagging"])
 
 
 class DownloadFailedError(Exception):
@@ -113,8 +113,9 @@ class AFGParser(SiteParser):
                     continue_template = "Continue reading →"
                     if text.endswith(continue_template):
                         text = text[:-len(continue_template)]
-                txt = to_paragraphs(text)
-                parsed.append(News(self, header, datetime, link, txt, []))
+                else:
+                    text = ""
+                parsed.append(RawNews(self, header, datetime, link, text, []))
         else:
             logging.critical("Wrong page format: {}".format(self.mainpage))
         return parsed
@@ -146,8 +147,8 @@ class BrainDamageParser(SiteParser):
                 date = None if not date else date.text.strip()
                 date = None if not date else time.strptime(date, "%A, %d %B %Y")
                 text = text_pt.find_all("tr")
-                paragraphs = [] if not len(text) > 2 else to_paragraphs(text[2].text.strip())
-                parsed.append(News(self, header, date, link, paragraphs, []))
+                paragraphs = "" if not len(text) > 2 else text[2].text.strip()
+                parsed.append(RawNews(self, header, date, link, paragraphs, []))
         else:
             logging.critical("Wrong page format: {}".format(self.mainpage))
         return parsed
@@ -178,11 +179,11 @@ class PulseAndSpiritParser(SiteParser):
                 if not header or not link:
                     continue
                 text = article.find("div", class_="entry-summary")
-                ptext = [] if not text else to_paragraphs(text.text.strip())
+                ptext = text.text
                 tags = article.find_all("a", rel="category tag")
                 tags = [tag.text for tag in tags]
                 parsed.append(
-                    News(
+                    RawNews(
                         self,
                         header,
                         datetime_string,
@@ -228,10 +229,9 @@ class FloydianSlipParser(SiteParser):
                 link = None if not header_link else header_link["href"]
                 if not header or not link:
                     continue
-                text = article.find("div", class_="entry").text
-                ptext = to_paragraphs(None if not text else text.strip())
+                ptext = article.find("div", class_="entry").text.strip()
                 parsed.append(
-                    News(
+                    RawNews(
                         self,
                         header,
                         time.strptime(datetime_string, self.time_format),

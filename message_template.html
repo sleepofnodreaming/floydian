@@ -9,7 +9,7 @@
     {% for n in news %}
     <li>
         <div>
-            <a href="{{ n.link }}">{{ n.name }}</a> {% if (not n.parser.lang is equalto "en") and translation_used %}(translated with <a href="https://translate.yandex.ru/">Yandex</a>){% endif %}
+            <a href="{{ n.link }}">{{ n.name }}</a> {% if (not n.lang is equalto n.src_lang) %}(translated with <a href="https://translate.yandex.ru/">Yandex</a>){% endif %}
         </div>
         <div>
             {% for i in n.text %}

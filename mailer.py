@@ -12,6 +12,8 @@ from email.mime.text import MIMEText
 from parsers import *
 from postproc import *
 from typing import Tuple
+from collections import namedtuple
+
 
 logging.basicConfig(format=u'[%(asctime)s] %(levelname)s. %(message)s', stream=sys.stderr, level=logging.INFO)
 
@@ -53,24 +55,24 @@ class SMTPMailer(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.server_connection.quit()
 
-    def mailto(self, content: ([News], bool), addressee: [str]) -> None:
+    def mailto(self, newsfeed: List[RawNews], addressee: [str]) -> None:
         """
         Render a newsfeed and send it to adressees from a mailing list.
 
-        :param content: newsfeed data - a list of news along with a translation success flag;
+        :param newsfeed: newsfeed data - a list of news;
         :param addressee: a list of emails.
-        :return: None.
-        
         """
-        newsfeed, is_translated = content
-        msg = MIMEText(self.template.render(news=newsfeed, translation_used=is_translated), "html")
+        msg = MIMEText(self.template.render(news=newsfeed), "html")
         msg['Subject'] = "Floydian Newsletter {}".format(self.initdate)
         msg['From'] = "Pink Floyd Mailer <{}>".format(self.my_email)
         msg['To'] = ", ".join(addressee)
         self.server_connection.sendmail(self.my_email, addressee, msg.as_string())
 
 
-def get_latest_news(filters: Tuple[Predicate] = (), en_only: bool=True) -> ([News], bool):
+ReadyNews = namedtuple("ReadyNews", ["name", "date", "link", "text", "src_lang", "lang"])
+
+
+def get_latest_news(filters: Tuple[Predicate] = (), en_only: bool=True) -> [ReadyNews]:
     """
     Download the latest news from sources present in a PARSERS list.
 
@@ -80,23 +82,32 @@ def get_latest_news(filters: Tuple[Predicate] = (), en_only: bool=True) -> ([New
 
     """
     newsfeed = []
-
     timestamp = datetime.datetime.now()
-    translation_used = False
+
+    def to_ready_news(news):
+        paragraphs, lang = to_paragraphs(news.text), news.parser.lang
+        if en_only and lang != "en":
+            translation = Converters.translate(paragraphs, lang, "en")
+            translated_name = Converters.translate([news.name], lang, "en")
+        else:
+            translation, translated_name = None, None
+
+        converted_news = ReadyNews(
+            name=(translated_name + " / " + news.name) if translated_name else news.name,
+            date=news.date,
+            link=news.link,
+            text=paragraphs if not translation else translation,
+            src_lang=lang,
+            lang="en" if (translation or translated_name) else lang
+        )
+        return converted_news
 
     for parser in PARSERS:
         news = filter_feed(parser.news, *filters)
-        if en_only and parser.lang != "en":
-            for n in news:
-                if n.text:
-                    updated_text, translated_successfully = Converters.translate(n.text, parser.lang, "en")
-                    if translated_successfully:
-                        translation_used = True
-                        n.text.clear()
-                        n.text.extend(updated_text)
-        newsfeed.extend(news)
-        update_latest_post_urls(timestamp, parser.news)
-    return newsfeed, translation_used
+        for n in news:
+            newsfeed.append(to_ready_news(n))
+        update_latest_post_urls(timestamp, news)
+    return newsfeed
 
 
 if __name__ == '__main__':
@@ -106,10 +117,10 @@ if __name__ == '__main__':
     )
     mail = SETTINGS["mailer"]["sender"]
     passwd = getpass.getpass(prompt="Password for {}: ".format(mail))
-    newsfeed, translation_used = get_latest_news(filters)
+    newsfeed = get_latest_news(filters)
     if newsfeed:
         with SMTPMailer(mail, passwd) as mailer:
-            mailer.mailto((newsfeed, translation_used), SETTINGS["sendto"])
+            mailer.mailto(newsfeed, SETTINGS["sendto"])
     else:
         logging.info("There're no updates.")
 

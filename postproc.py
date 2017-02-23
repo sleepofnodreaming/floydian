@@ -9,9 +9,10 @@ import requests
 
 from configuration import SETTINGS
 from database_management import get_latest_post_urls
-from parsers import News
+from parsers import RawNews
 import logging
 import re
+from typing import List, Union
 
 
 class Predicate(metaclass=abc.ABCMeta):
@@ -22,7 +23,7 @@ class Predicate(metaclass=abc.ABCMeta):
     apply_to = []
 
     @abc.abstractmethod
-    def __call__(self, data: News) -> bool:
+    def __call__(self, data: RawNews) -> bool:
         return True
 
 
@@ -41,31 +42,31 @@ class IsPreviewOrSonglist(Predicate):
             flags=re.I | re.U
         )
 
-    def __call__(self, data: News) -> bool:
+    def __call__(self, data: RawNews) -> bool:
         """
         Calling the instance with a news post arg checks whether a post
         is a good one or a preview / songlist of a FS broadcast.
 
-        :param data: A News instance.
+        :param data: A RawNews instance.
 
         :return: A boolean saying whether a text is admitted to the today's news feed.
 
         >>> from parsers import FloydianSlipParser
         >>> predicate = IsPreviewOrSonglist()
         >>> fsp = FloydianSlipParser()
-        >>> songlist_news = News(
+        >>> songlist_news = RawNews(
         ... fsp, "Any Name", "Date does not matter here",
         ... "http://www.floydianslip.com/news/2016/07/floydian-slip-songlist-1057/",
         ... "Here comes a text", []) # song list post instance
-        >>> preview_news = News(
+        >>> preview_news = RawNews(
         ... fsp, "Any Name", "Date does not matter here",
         ... "http://www.floydianslip.com/news/2016/07/floydian-slip-preview-1058/",
         ... "Here comes a text", []) # preview post instance
-        >>> fs_news = News(
+        >>> fs_news = RawNews(
         ... fsp, "Any Name", "Date does not matter here",
         ... "http://www.floydianslip.com/news/2016/07/floydian-slip-coming-to-kcut-102-9-fm-moab-ut/",
         ... "Here comes a text", []) # good FS post instance
-        >>> random_news = News(
+        >>> random_news = RawNews(
         ... fsp, "Any Name", "Date does not matter here",
         ... "http://www.brain-damage.co.uk/latest/david-gilmour-in-pompeii-guardian-photo-essay.html",
         ... "Here comes a text", []) # random post instance
@@ -90,7 +91,7 @@ class SentBefore(Predicate):
     def __init__(self):
         self.sent_before = get_latest_post_urls()
 
-    def __call__(self, data: News) -> bool:
+    def __call__(self, data: RawNews) -> bool:
         out = data.link not in self.sent_before
         if not out:
             logging.warning("Ignored: {} ({} post)".format(data.link, "previously published"))
@@ -99,7 +100,7 @@ class SentBefore(Predicate):
         return out
 
 
-def filter_feed(newsfeed: [News], *predicates: Predicate) -> [News]:
+def filter_feed(newsfeed: [RawNews], *predicates: Predicate) -> [RawNews]:
     """
     Filter the feed with a set of admitting predicates given.
 
@@ -113,17 +114,18 @@ def filter_feed(newsfeed: [News], *predicates: Predicate) -> [News]:
 
 class Converters(object):
     @staticmethod
-    def translate(text: [str], from_lang: str, to_lang: str) -> ([str], bool):
+    def translate(text: [str], from_lang: str, to_lang: str) -> Union[None, List[str]]:
         """
         Translate news texts using Yandex translator API.
 
-        :param text: a list of text pieces to translate;
-        :param from_lang: a code of a source language (see  the API reference to get a list of possible values);
-        :param to_lang: a code of a language to translate the texts into.
-        :return: a list of translated texts, in case of success, and the initial one, otherwise;
-        a flag showing whether the texts were translated.
+        :param text: A list of text pieces to translate.
+        :param from_lang: A code of a source language (see  the API reference to get a list of possible values).
+        :param to_lang: A code of a language to translate the texts into.
 
+        :return: A list of translated texts, in case of success, and None, otherwise.
         """
+        if "translate-key" not in SETTINGS:
+            return
         result = requests.get("https://translate.yandex.net/api/v1.5/tr.json/translate", params={
             "key": SETTINGS["translate-key"],
             "text": text,
@@ -131,8 +133,7 @@ class Converters(object):
             "format": "plain"
         })
         response_json = json.loads(result.text)
-        if response_json["code"] == 200:
-            return response_json["text"], True
-        else:
+        if response_json["code"] != 200:
             logging.warning("Translation failed: {} -> {}.".format(from_lang, to_lang))
-            return text, False
+            return
+        return response_json["text"]
