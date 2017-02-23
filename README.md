@@ -7,6 +7,7 @@ A simple news aggregator written to keep track of major news sources' posts.
 * LXML 3.5
 * Pony ORM
 * Requests
+* jsonschema
 
 For translation, [Yandex.Translate](https://translate.yandex.ru/) is used. An API key's required.
 
