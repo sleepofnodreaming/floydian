@@ -17,7 +17,6 @@ import re
 class Predicate(metaclass=abc.ABCMeta):
     """
     Base abstract class for predicate creation.
-
     """
 
     apply_to = []
@@ -32,7 +31,6 @@ class IsPreviewOrSonglist(Predicate):
     In Floydian Slip, there is a type of posts which is not needed in the feed:
     these are posts about Floydian Slip broadcast.
     This predicate removes them from the feed.
-
     """
 
     apply_to = ["Floydian Slip", ]
@@ -48,8 +46,9 @@ class IsPreviewOrSonglist(Predicate):
         Calling the instance with a news post arg checks whether a post
         is a good one or a preview / songlist of a FS broadcast.
 
-        :param data: a news instance;
-        :return: a boolean saying whether a text is admitted to the today's news feed.
+        :param data: A News instance.
+
+        :return: A boolean saying whether a text is admitted to the today's news feed.
 
         >>> from parsers import FloydianSlipParser
         >>> predicate = IsPreviewOrSonglist()
@@ -78,7 +77,6 @@ class IsPreviewOrSonglist(Predicate):
         False
         >>> predicate(songlist_news)
         False
-
         """
         if data.parser.name in self.apply_to:
             is_preview = self.is_preview.search(data.link)
@@ -105,10 +103,10 @@ def filter_feed(newsfeed: [News], *predicates: Predicate) -> [News]:
     """
     Filter the feed with a set of admitting predicates given.
 
-    :param newsfeed: all posts collected;
-    :param predicates: callables getting a News instance as an arg and returning a bool;
-    :return: a filtered feed.
+    :param newsfeed: All posts collected.
+    :param predicates: Callables getting a News instance as an arg and returning a bool.
 
+    :return: A filtered feed.
     """
     return [post for post in newsfeed if all([i(post) for i in predicates])]
 
