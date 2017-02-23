@@ -16,11 +16,11 @@ class DownloadFailedError(Exception):
 
 def to_paragraphs(text: str) -> [str]:
     """
-    The functions splits a text into paragraphs.
+    Split a text into paragraphs.
 
-    :param text: a text of a post, where paragraphs are separated with '\n's.
-    :return: a list of paragraphs.
+    :param text: A text of a post, where paragraphs are separated with '\n's.
 
+    :return: A list of paragraphs.
     """
     if not text:
         return []
@@ -29,79 +29,72 @@ def to_paragraphs(text: str) -> [str]:
 
 
 class SiteParser(metaclass=abc.ABCMeta):
-    """
-    A base parser class.
-
-    """
+    """A base parser class."""
     name = ""
     lang = "en"
 
-    def __init__(self, mainpage):
+    def __init__(self, mainpage: str):
         """
-        The method initializes a parser instance.
+        Initialize a parser instance.
 
-        :param mainpage: a URL of a web page containing the latest news.
-        :return: None.
-
+        :param mainpage: A URL of a web page containing the latest news.
         """
         self.mainpage = mainpage
         self.html = None
 
     def download_page(self):
         """
-        The method re-downloads the news page and assigns it to a self.html attribute.
+        Download the news page.
 
-        :return: None.
+        :return: HTML of a webpage.
 
+        :raise: DownloadFailedError, if the page is unavailable.
         """
         resp = requests.get(self.mainpage)
         if resp.status_code != 200 or not resp.headers['content-type'].startswith("text/html"):
-            raise DownloadFailedError()
-        self.html = resp.text
+            raise DownloadFailedError("Error downloading webpage: {}".format(self.mainpage))
+        return resp.text
 
     @abc.abstractmethod
-    def to_news(self):
+    def to_news(self, html: str):
         """
-        The method parses a html saved to the self.html attribute.
+        Parse an html saved to the self.html attribute.
         WARNING: Override this method subclassing the parser.
 
-        :return: a list of News instances.
-
+        :return: A list of News instances.
         """
         return []
 
     @property
     def news(self):
         """
-        Getter for a list of news.
+        Template method to get the news.
 
-        :return: a list of News instances.
+        :return: A list of News instances.
 
         """
         try:
-            self.download_page()
-        except DownloadFailedError:
-            logging.critical("Error downloading page: {}".format(self.mainpage))
+            self.html = self.download_page()
+        except DownloadFailedError as e:
+            logging.critical(str(e))
             return []
         if not self.html:
             logging.critical("Page is empty: {}".format(self.mainpage))
             return []
-        return self.to_news()
+        return self.to_news(self.html)
 
 
 class AFGParser(SiteParser):
     """
     A Fleeting Glimpse parser.
-
     """
-
     name = "A Fleeting Glimpse"
 
     def __init__(self):
         SiteParser.__init__(self, "http://www.pinkfloydz.com/")
 
-    def to_news(self):
-        soup = BeautifulSoup(self.html, "lxml")
+    def to_news(self, html: str):
+        soup = BeautifulSoup(html, "lxml")
         parsed = []
         article_parent = soup.find("div", class_="wvrx-posts")
         if article_parent:
@@ -130,16 +123,14 @@ class AFGParser(SiteParser):
 class BrainDamageParser(SiteParser):
     """
     Brain Damage main page parser.
-
     """
-
     name = "Brain Damage"
 
     def __init__(self):
         SiteParser.__init__(self, "http://www.brain-damage.co.uk/index.php")
 
-    def to_news(self):
-        soup = BeautifulSoup(self.html, "lxml")
+    def to_news(self, html: str):
+        soup = BeautifulSoup(html, "lxml")
         parsed = []
         article_parent = soup.find("table", class_="blog")
         if article_parent:
@@ -165,17 +156,15 @@ class BrainDamageParser(SiteParser):
 class PulseAndSpiritParser(SiteParser):
     """
     Pulse & Spirit main page parser.
-
     """
-
     name = "Pulse & Spirit"
     lang = "de"
 
     def __init__(self):
         SiteParser.__init__(self, "http://www.pulse-and-spirit.com/")
 
-    def to_news(self):
-        soup = BeautifulSoup(self.html, "lxml")
+    def to_news(self, html: str):
+        soup = BeautifulSoup(html, "lxml")
         parsed = []
         article_parent = soup.find("section", class_="content")
         if article_parent:
@@ -210,9 +199,7 @@ class PulseAndSpiritParser(SiteParser):
 class FloydianSlipParser(SiteParser):
     """
     Floydian Slip main page parser.
-
     """
-
     name = "Floydian Slip"
 
     def __init__(self):
@@ -220,8 +207,8 @@ class FloydianSlipParser(SiteParser):
         self._date_parser = re.compile(r"^Posted (.*?) by", flags=re.U)
         self.time_format = "%B %d, %Y"
 
-    def to_news(self):
-        soup = BeautifulSoup(self.html, "lxml")
+    def to_news(self, html: str):
+        soup = BeautifulSoup(html, "lxml")
         parsed = []
         article_parent = soup.find("div", class_="row contentArea last")
         if article_parent:
