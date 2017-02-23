@@ -93,7 +93,7 @@ def get_latest_news(filters: Tuple[Predicate] = (), en_only: bool=True) -> [Read
             translation, translated_name = None, None
 
         converted_news = ReadyNews(
-            name=(translated_name + " / " + news.name) if translated_name else news.name,
+            name=(translated_name[0] + " / " + news.name) if translated_name else news.name,
             date=news.date,
             link=news.link,
             text=paragraphs if not translation else translation,

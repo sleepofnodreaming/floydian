@@ -38,7 +38,7 @@ class IsPreviewOrSonglist(Predicate):
 
     def __init__(self):
         self.is_preview = re.compile(
-            "^http://www.floydianslip.com/news/\d+/\d+/floydian-slip-(preview|songlist)-\d+/$",
+            "^https?://www.floydianslip.com/news/\d+/\d+/floydian-slip-(preview|songlist)-\d+/$",
             flags=re.I | re.U
         )
 
