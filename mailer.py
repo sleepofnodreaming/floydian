@@ -1,18 +1,18 @@
 #!/usr/local/bin/python3
 import datetime
 import getpass
-import jinja2
 import smtplib
 import sys
 
+from email.mime.text import MIMEText
+from typing import Tuple, Iterable
+
+import jinja2
 
 from configuration import SETTINGS, SELF_PATH
 from database_management import update_latest_post_urls
-from email.mime.text import MIMEText
 from parsers import *
 from postproc import *
-from typing import Tuple
-from collections import namedtuple
 
 
 logging.basicConfig(format=u'[%(asctime)s] %(levelname)s. %(message)s', stream=sys.stderr, level=logging.INFO)
@@ -28,7 +28,6 @@ PARSERS = [
 class SMTPMailer(object):
     """
     A class responsible for sending emails.
-
     """
 
     SERVER = SETTINGS["mailer"]["server"]
@@ -36,10 +35,8 @@ class SMTPMailer(object):
 
     def __init__(self, email: str, passwd: str):
         """
-        :param email: an address to use as a sender email;
-        :param passwd: a password;
-        :return: None.
-
+        :param email: An address to use as a sender email.
+        :param passwd: A password.
         """
         jloader = jinja2.FileSystemLoader(SELF_PATH)
         self.template = jinja2.Environment(loader=jloader).get_template("message_template.html")
@@ -59,8 +56,8 @@ class SMTPMailer(object):
         """
         Render a newsfeed and send it to adressees from a mailing list.
 
-        :param newsfeed: newsfeed data - a list of news;
-        :param addressee: a list of emails.
+        :param newsfeed: Newsfeed data - a list of news.
+        :param addressee: A list of emails.
         """
         msg = MIMEText(self.template.render(news=newsfeed), "html")
         msg['Subject'] = "Floydian Newsletter {}".format(self.initdate)
@@ -72,14 +69,18 @@ class SMTPMailer(object):
 ReadyNews = namedtuple("ReadyNews", ["name", "date", "link", "text", "src_lang", "lang"])
 
 
-def get_latest_news(filters: Tuple[Predicate] = (), en_only: bool=True) -> [ReadyNews]:
+def get_latest_news(
+        parsers: Iterable[SiteParser],
+        filters: Tuple[Predicate, ...] = (),
+        en_only: bool=True) -> [ReadyNews]:
     """
     Download the latest news from sources present in a PARSERS list.
 
-    :param filters: a tuple of filters to apply to the news feed.
-    :param en_only: a flag showing whether news not in English should be translated.
-    :return: downloaded newsfeed, timestamp, a flag showing whether a translation's used.
+    :param parsers: A list of objects parsing necessary sources.
+    :param filters: A tuple of filters to apply to the news feed.
+    :param en_only: A flag showing whether news not in English should be translated.
 
+    :return: Downloaded newsfeed, timestamp, a flag showing whether a translation's used.
     """
     newsfeed = []
     timestamp = datetime.datetime.now()
@@ -102,7 +103,7 @@ def get_latest_news(filters: Tuple[Predicate] = (), en_only: bool=True) -> [Read
         )
         return converted_news
 
-    for parser in PARSERS:
+    for parser in parsers:
         news = filter_feed(parser.news, *filters)
         for n in news:
             newsfeed.append(to_ready_news(n))
@@ -117,7 +118,7 @@ if __name__ == '__main__':
     )
     mail = SETTINGS["mailer"]["sender"]
     passwd = getpass.getpass(prompt="Password for {}: ".format(mail))
-    newsfeed = get_latest_news(filters)
+    newsfeed = get_latest_news(filter(lambda p: p.name in SETTINGS["sources"], PARSERS), filters)
     if newsfeed:
         with SMTPMailer(mail, passwd) as mailer:
             mailer.mailto(newsfeed, SETTINGS["sendto"])

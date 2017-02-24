@@ -11,6 +11,14 @@ schema = {
     "title": "Config",
     "type": "object",
     "properties": {
+        "sources": {
+            "type": "array",
+            "items": {
+                    "type": "string"
+                },
+                "minItems": 1,
+                "uniqueItems": True,
+        },
         "translate-key": {
             "type": "string",
         },
