@@ -5,14 +5,15 @@ Module containing a set of tools to postprocess a newsfeed.
 
 import abc
 import json
+import logging
+import re
+from typing import List, Union
+
 import requests
 
 from configuration import SETTINGS
 from database_management import get_latest_post_urls
 from parsers import RawNews
-import logging
-import re
-from typing import List, Union
 
 
 class Predicate(metaclass=abc.ABCMeta):

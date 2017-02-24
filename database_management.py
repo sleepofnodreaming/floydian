@@ -1,15 +1,16 @@
 """
 The module is responsible for getting the info about the previous news letter from the database.
-
 """
-
-from configuration import SELF_PATH
-from datetime import datetime
-from parsers import RawNews
-from pony import orm
 
 import logging
 import os
+from datetime import datetime
+
+from pony import orm
+
+from parsers import RawNews
+from configuration import SELF_PATH
+
 
 DATABASE_FILE = os.path.join(SELF_PATH, 'aggregations.db')
 # DATABASE_FILE = ":memory:"
